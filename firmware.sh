@@ -285,19 +285,19 @@ Please select the number for the correct option from the list below:"
     fi
 
     # create backup if existing firmware is stock
-    if [[ "$isStock" = "true" ]]; then
-        if [[ "$isEOL" = "false" ]]; then
-            REPLY=y
-        else
-            echo_yellow "\nCreate a backup copy of your stock firmware?"
-            read -erp "This is highly recommended in case you wish to return your device to stock
-configuration/run ChromeOS, or in the (unlikely) event that things go south
-and you need to recover using an external EEPROM programmer. [Y/n] "
-        fi
-        [[ "$REPLY" = "n" || "$REPLY" = "N" ]] && true || backup_firmware
-        #check that backup succeeded
-        [ $? -ne 0 ] && return 1
-    fi
+	if [[ "$isStock" = "true" ]]; then
+    	if [[ "$isEOL" = "false" ]]; then
+        	REPLY=y
+    	else
+        	echo_yellow "\nCreate a backup copy of your stock firmware?"
+        	read -erp "This is highly recommended in case you wish to return your device to stock
+	configuration/run ChromeOS, or in the (unlikely) event that things go south
+	and you need to recover using an external EEPROM programmer. [Y/n] "
+    	fi
+    	[[ "$REPLY" = "n" || "$REPLY" = "N" ]] && true || backup_firmware
+    	#check that backup succeeded
+    	[ $? -ne 0 ] && return 1
+	fi
 
     #download firmware file
     cd /tmp || { exit_red "Error changing to tmp dir; cannot proceed"; return 1; }
@@ -854,7 +854,53 @@ function extract_vpd()
 #########################
 # Backup stock firmware #
 #########################
+function backup_firmware()
+{
+    echo -e ""
+    read -rep "Connect the USB/SD device to store the firmware backup and press [Enter]
+to continue.  This is non-destructive, but it is best to ensure no other
+USB/SD devices are connected. "
 
+    if ! list_usb_devices; then
+        backup_fail "No USB devices available to store firmware backup."
+        return 1
+    fi
+
+    usb_dev_index=""
+    while [[ "$usb_dev_index" = "" || ($usb_dev_index -le 0 && $usb_dev_index -gt $num_usb_devs) ]]; do
+        read -rep "Enter the number for the device to be used for firmware backup: " usb_dev_index
+        if [[ "$usb_dev_index" = "" || ($usb_dev_index -le 0 && $usb_dev_index -gt $num_usb_devs) ]]; then
+            echo -e "Error: Invalid option selected; enter a number from the list above."
+        fi
+    done
+
+    usb_device="${usb_devs[${usb_dev_index}-1]}"
+    mkdir /tmp/usb > /dev/null 2>&1
+    if ! mount -o rw "${usb_device}" /tmp/usb > /dev/null 2>&1; then
+        if ! mount -o rw "${usb_device}1" /tmp/usb > /dev/null 2>&1; then
+            backup_fail "USB backup device failed to mount; cannot proceed. Ensure your USB is FAT32-formatted and try again."
+            return 1
+        fi
+    fi
+    backupname="stock-firmware-${boardName}-$(date +%Y%m%d).rom"
+    echo_yellow "\nSaving firmware backup as ${backupname}"
+    if ! cp /tmp/bios.bin /tmp/usb/${backupname}; then
+        backup_fail "Failure copying stock firmware to USB; cannot proceed."
+        return 1
+    fi
+    sync
+    umount /tmp/usb > /dev/null 2>&1
+    rmdir /tmp/usb
+    echo_green "Firmware backup complete. Remove the USB stick and press [Enter] to continue."
+    read -rep ""
+}
+
+function backup_fail()
+{
+    umount /tmp/usb > /dev/null 2>&1
+    rmdir /tmp/usb > /dev/null 2>&1
+    exit_red "\n$@"
+}
 
 
 ####################
