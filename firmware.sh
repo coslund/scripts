@@ -284,21 +284,7 @@ Please select the number for the correct option from the list below:"
         ${cbfstoolcmd} /tmp/bios.bin extract -n hwid -f /tmp/hwid.txt >/dev/null 2>&1
     fi
 
-	# create backup if existing firmware is stock
-	if [[ "$isStock" = "true" ]]; then
-    	if [[ "$isEOL" = "false" ]]; then
-        	echo_yellow "Skipping firmware backup (forced skip)."
-        	true  # Simulate successful backup
-    	else
-        	echo_yellow "\nCreate a backup copy of your stock firmware?"
-        	read -erp "This is highly recommended in case you wish to return your device to stock
-	configuration/run ChromeOS, or in the (unlikely) event that things go south
-	and you need to recover using an external EEPROM programmer. [Y/n] "
-        	[[ "$REPLY" = "n" || "$REPLY" = "N" ]] && true || { echo_yellow "Skipping firmware backup (forced skip)."; true; }
-    	fi
-    	#check that backup succeeded
-    	[ $? -ne 0 ] && return 1
-	fi
+	
     #download firmware file
     cd /tmp || { exit_red "Error changing to tmp dir; cannot proceed"; return 1; }
     echo_yellow "\nDownloading Full ROM firmware\n(${coreboot_file})"
